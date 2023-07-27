@@ -65,23 +65,22 @@ trigger:
   from: "off"
   to: "on"
 
-condition:
-  - condition: template
-    value_template: |-
-      {% if illuminance_sensor == '' %}
-        true
-      {% else %}
-        {{ states(illuminance_sensor)|int(0) < 20 }}
-      {% endif %}
-  - condition: template
-    value_template: |-
-      {{ is_state(light_target.entity_id, 'off') }}
+condition: []
 
 action:
   - alias: "Turn on the light"
-    service: light.turn_on
-    target: !input light_target
-    data: !input light_service_data
+    if:
+      - condition: template
+        value_template: |-
+          {% if illuminance_sensor == '' %}
+            true
+          {% else %}
+            {{ states(illuminance_sensor)|int(0) < 20 }}
+          {% endif %}
+    then:
+      - service: light.turn_on
+        target: !input light_target
+        data: !input light_service_data
   - alias: "Wait until there is no motion from device"
     wait_for_trigger:
       platform: state
