@@ -1,0 +1,88 @@
+blueprint:
+  name: Motion Switch
+  description: Turn on a switch when motion is detected.
+  domain: automation
+  author: DaveHornigan
+  source_url: https://github.com/DaveHornigan/hassio-blueprints/blob/master/blueprints/motion_switch.yaml
+  input:
+    motion_entity:
+      name: Motion Sensor
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: motion
+    switch_target:
+      name: Switch
+      selector:
+        target:
+          entity:
+            domain: switch
+    illuminance_sensor:
+      name: Illuminance Sensor
+      default: ''
+      selector:
+        entity:
+          domain: sensor
+    minimum_lx:
+      name: Minimal Lux for switch on
+      description: The switch will not turn on if the lux on the sensor is more than indicated.
+      default: 20
+      selector:
+        number:
+          min: 0
+          max: 130000
+          unit_of_measurement: lx
+    no_motion_wait:
+      name: Wait time
+      description: Time to leave the switch on after last motion is detected.
+      default: 120
+      selector:
+        number:
+          min: 0
+          max: 3600
+          unit_of_measurement: seconds
+
+# If motion is detected within the delay,
+# we restart the script.
+mode: restart
+max_exceeded: silent
+
+
+variables:
+  illuminance_sensor: !input illuminance_sensor
+  minimum_lx: !input minimum_lx
+  switch_target: !input switch_target
+
+trigger:
+  platform: state
+  entity_id: !input motion_entity
+  from: "off"
+  to: "on"
+
+condition:
+  - condition: template
+    value_template: |-
+      {% if illuminance_sensor == '' %}
+        true
+      {% else %}
+        {{ states(illuminance_sensor)|int(0) < 20 }}
+      {% endif %}
+  - condition: template
+    value_template: |-
+      {{ is_state(switch_target.entity_id, 'off') }}
+
+action:
+  - alias: "Turn on the switch"
+    service: switch.turn_on
+    target: !input switch_target
+  - alias: "Wait until there is no motion from device"
+    wait_for_trigger:
+      platform: state
+      entity_id: !input motion_entity
+      from: "on"
+      to: "off"
+  - alias: "Wait the number of seconds that has been set"
+    delay: !input no_motion_wait
+  - alias: "Turn off the switch"
+    service: switch.turn_off
+    target: !input switch_target
