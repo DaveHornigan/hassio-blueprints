@@ -1,0 +1,95 @@
+blueprint:
+  name: Motion Light
+  description: Turn on a light when motion is detected.
+  domain: automation
+  author: DaveHornigan
+  source_url: https://github.com/DaveHornigan/hassio-blueprints/blob/master/blueprints/motion_light.yaml
+  input:
+    motion_entity:
+      name: Motion Sensor
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: motion
+    light_target:
+      name: Light
+      selector:
+        target:
+          entity:
+            domain: light
+    light_service_data:
+      name: Light On Service data
+      description: https://www.home-assistant.io/integrations/light#service-lightturn_on
+      default: {}
+      selector:
+        object:
+    illuminance_sensor:
+      name: Illuminance Sensor
+      default: ''
+      selector:
+        entity:
+          domain: sensor
+    minimum_lx:
+      name: Minimal Lux for light on
+      description: The light will not turn on if the lux on the sensor is more than indicated.
+      default: 20
+      selector:
+        number:
+          min: 0
+          max: 130000
+          unit_of_measurement: lx
+    no_motion_wait:
+      name: Wait time
+      description: Time to leave the light on after last motion is detected.
+      default: 120
+      selector:
+        number:
+          min: 0
+          max: 3600
+          unit_of_measurement: seconds
+
+# If motion is detected within the delay,
+# we restart the script.
+mode: restart
+max_exceeded: silent
+
+
+variables:
+  illuminance_sensor: !input illuminance_sensor
+  minimum_lx: !input minimum_lx
+  light_target: !input light_target
+
+trigger:
+  platform: state
+  entity_id: !input motion_entity
+  from: "off"
+  to: "on"
+
+condition:
+  - condition: template
+    value_template: |-
+      {% if illuminance_sensor == '' %}
+        true
+      {% else %}
+        {{ states(illuminance_sensor)|int(0) < 20 }}
+      {% endif %}
+  - condition: template
+    value_template: |-
+      {{ is_state(light_target.entity_id, 'off') }}
+
+action:
+  - alias: "Turn on the light"
+    service: light.turn_on
+    target: !input light_target
+    data: !input light_service_data
+  - alias: "Wait until there is no motion from device"
+    wait_for_trigger:
+      platform: state
+      entity_id: !input motion_entity
+      from: "on"
+      to: "off"
+  - alias: "Wait the number of seconds that has been set"
+    delay: !input no_motion_wait
+  - alias: "Turn off the light"
+    service: light.turn_off
+    target: !input light_target
