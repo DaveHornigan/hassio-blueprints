@@ -1,0 +1,53 @@
+blueprint:
+  name: Sync Lights and Switches
+  domain: automation
+  author: DaveHornigan
+  source_url: https://github.com/DaveHornigan/hassio-blueprints/blob/master/blueprints/sync_lights_and_switches.yaml
+  input:
+    targetsList:
+      name: Lights and Switches
+      default: []
+      selector:
+        entity:
+          multiple: true
+          domain:
+            - light
+            - switch
+
+mode: single
+
+trigger:
+  platform: state
+  entity_id: !input targetsList
+
+variables:
+  targetEntities: !input targetsList
+
+condition:
+  - condition: template
+    value_template: "{{ targetEntities|count > 1 }}"
+
+action:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.to_state.state == 'on' }}"
+        sequence:
+          - repeat:
+              for_each: "{{ targetEntities }}"
+              sequence:
+                - service: homeassistant.turn_on
+                  data: {}
+                  target:
+                    entity_id: "{{ repeat.item }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.to_state.state == 'off' }}"
+        sequence:
+          - repeat:
+              for_each: "{{ targetEntities }}"
+              sequence:
+                - service: homeassistant.turn_off
+                  data: {}
+                  target:
+                    entity_id: "{{ repeat.item }}"
