@@ -19,6 +19,8 @@ mode: single
 trigger:
   platform: state
   entity_id: !input targetsList
+  from: null
+  to: null
 
 variables:
   targetEntities: !input targetsList
