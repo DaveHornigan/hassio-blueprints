@@ -1,0 +1,58 @@
+blueprint:
+  name: Z2M - Tuya Wireless Remote Switch (2 buttons) - 9 actions
+  domain: automation
+  author: DaveHornigan
+  source_url: https://github.com/DaveHornigan/hassio-blueprints/blob/master/blueprints/z2m-tuya-wireless-remote-swicth-double.yaml
+  input:
+    remote:
+      name: Z2M Device Name
+      description: 'From MQTT Device Info topic name: zigbee2mqtt/DEVICE_NAME/availability'
+      selector:
+        text:
+          multiline: false
+    condition:
+      name: Condition
+      description: Condition to test before handling a button press
+      default: []
+      selector:
+        action: {}
+    left_click:
+      name: Left Single
+      default: []
+      selector:
+        action: {}
+    left_double:
+      name: Left Double
+      default: []
+      selector:
+        action: {}
+    right_click:
+      name: Right Single
+      default: []
+      selector:
+        action: {}
+    right_double:
+      name: Right Double
+      default: []
+      selector:
+        action: {}
+mode: restart
+max_exceeded: silent
+trigger_variables:
+  device_id: !input remote
+trigger:
+  platform: mqtt
+  topic: '{{ "zigbee2mqtt/" + device_id + "/action" }}'
+condition: !input condition
+action:
+  - variables:
+      command: '{{ trigger.payload }}'
+  - choose:
+      - conditions: '{{ command == ''single_left'' or command == ''left'' or command == ''1_single'' }}'
+        sequence: !input left_click
+      - conditions: '{{ command == ''double_left'' or command == ''left_double'' or command == ''1_double'' }}'
+        sequence: !input left_double
+      - conditions: '{{ command == ''single_right'' or command == ''right'' or command == ''2_single'' }}'
+        sequence: !input right_click
+      - conditions: '{{ command == ''double_right'' or command == ''right_double'' or command == ''2_double'' }}'
+        sequence: !input right_double
